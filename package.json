@@ -1,0 +1,11 @@
+{
+  "name": "poker-why-solver",
+  "version": "0.1.0",
+  "description": "A river poker solver that explains why each move is best",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}
