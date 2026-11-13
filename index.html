@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rationale — the river solver that explains itself</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%E2%99%A0%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">♠</span>
+      <div>
+        <h1>Rationale</h1>
+        <p class="tag">A river solver that tells you why</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <label class="preset-pick">
+        <span>Example spot</span>
+        <select id="preset"></select>
+      </label>
+      <button id="edit-spot" class="btn ghost">Set up your own hand</button>
+      <label class="switch" title="Show definitions of poker terms inside each reason">
+        <input type="checkbox" id="beginner" checked>
+        <span>Explain terms</span>
+      </label>
+    </div>
+  </header>
+
+  <section class="felt" id="felt"></section>
+
+  <main class="layout">
+    <section class="col-strategy">
+      <div id="action-bar" class="panel action-bar"></div>
+      <div class="panel grid-panel">
+        <div class="panel-head">
+          <h2 id="grid-title">Range</h2>
+          <div id="legend" class="legend"></div>
+        </div>
+        <div id="grid" class="grid" role="grid" aria-label="Strategy for each starting hand"></div>
+        <div id="combos" class="combos"></div>
+      </div>
+      <div id="summary" class="panel summary"></div>
+    </section>
+    <aside class="col-explain">
+      <div id="explain" class="panel explain"></div>
+    </aside>
+  </main>
+
+  <footer class="foot" id="foot"></footer>
+
+  <dialog id="editor" class="editor">
+    <form method="dialog" id="editor-form"></form>
+  </dialog>
+
+  <div id="solving" class="solving" hidden>
+    <div class="solving-card">
+      <p id="solving-text">Solving…</p>
+      <div class="meter"><span id="solving-bar"></span></div>
+      <p class="muted small" id="solving-sub"></p>
+    </div>
+  </div>
+
+  <script type="module" src="src/ui/app.js"></script>
+</body>
+</html>
