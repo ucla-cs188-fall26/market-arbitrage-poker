@@ -14,7 +14,7 @@ CS 188 (HCI), Fall 2026 · Woyu Wang, King Bi, Kaveh Malekzadeh
 2. The app solves the river in about a second in your browser.
 3. It jumps to your decision and shows the best play, the EV of every option, and a list of reasons.
 4. Tap any action to play it and see the opponent's response, or tap any hand in the grid to see why
-   that hand (yours or the opponent's) is played that way. Toggle **Explain terms** for beginner definitions.
+   that hand (yours or the opponent's) is played that way. Hover or tap any dotted-underlined term (EV, MDF, blockers, ...) for a beginner definition.
 
 ## Install and run
 
