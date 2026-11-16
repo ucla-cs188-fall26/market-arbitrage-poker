@@ -53,7 +53,6 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
   background: #1d5446; border: 1px solid var(--felt-line); color: #f3f1e8; border-radius: var(--radius-sm);
   padding: 6px 8px; max-width: 320px;
 }
-.switch { display: flex; gap: 6px; align-items: center; font-size: 13px; color: #d6e1db; cursor: pointer; }
 .btn {
   border-radius: var(--radius-sm); padding: 7px 14px; cursor: pointer; border: 1px solid var(--line);
   background: var(--panel); font-weight: 500;
@@ -197,11 +196,6 @@ table.ev .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3
 .reason.note .rail { background: var(--muted); }
 .reason h4 { margin: 0 0 3px; font-size: 14.5px; font-weight: 600; }
 .reason p { margin: 0; color: #38433d; font-size: 14px; }
-.term {
-  display: inline-block; margin-top: 6px; font-size: 12.5px; color: var(--felt); background: #e6efe9;
-  border: none; border-radius: 999px; padding: 2px 9px; cursor: pointer;
-}
-.def { margin-top: 6px; font-size: 13px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 8px; }
 .ask { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
 
 /* ---------- footer ---------- */
@@ -252,3 +246,19 @@ table.ev .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3
   .editor .ranges { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- term tooltips ---------- */
+.tip {
+  display: inline; font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
+  border-bottom: 1px dotted currentColor; cursor: help; text-align: inherit;
+}
+.tip:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; border-radius: 2px; }
+.tip-pop {
+  position: fixed; z-index: 1000; max-width: min(320px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px); overflow-y: auto;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.14); padding: 9px 11px; font-size: 13px; line-height: 1.45;
+}
+.tip-pop[hidden] { display: none; }
+.tip-pop p { margin: 0; }
+.tip-pop p + p { margin-top: 6px; }

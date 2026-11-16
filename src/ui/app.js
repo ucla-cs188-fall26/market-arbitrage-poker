@@ -1,16 +1,16 @@
 import { Spot } from '../engine/spot.js';
 import { Solver } from '../engine/solver.js';
-import { explainHand, nodeSummary, GLOSSARY, PLAYER_NAMES, strategyOf } from '../engine/explain.js';
+import { explainHand, nodeSummary, player, strategyOf } from '../engine/explain.js';
 import { CLASS_LABELS, classIndexOfCombo } from '../engine/range.js';
 import { normalizeCombo, parseCard, rankOf, suitOf, RANKS, SUITS, SUIT_SYMBOLS } from '../engine/cards.js';
 import { PRESETS } from '../presets.js';
 import { openEditor } from './editor.js';
+import { esc, fmt, plain, initTips, closeTip } from './tips.js';
 
 const TARGET_EXPLOITABILITY = 0.05; // % of pot
 const MAX_ITERS = 4000;
 
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pct = (x, d = 0) => (Number.isFinite(x) ? `${(x * 100).toFixed(d)}%` : '–');
 const chips = (x) => (Number.isFinite(x) ? (Math.abs(x) >= 10 ? x.toFixed(1) : x.toFixed(2)) : '–');
 
@@ -23,8 +23,6 @@ const state = {
   path: [],
   selClass: null,
   selIndex: null,
-  openTerms: new Set(),
-  beginner: true,
 };
 
 // ---------- cards ----------
@@ -61,7 +59,7 @@ async function solve(config, hero, meta = {}) {
   try { heroKey = normalizeCombo(hero.hand); } catch (e) { return { error: `Your hand: ${e.message}` }; }
   if (!spot.keyIndex[hero.player].has(heroKey)) {
     const clash = [heroKey.slice(0, 2), heroKey.slice(2)].some((c) => spot.board.includes(parseCard(c)));
-    return { error: clash ? `Your hand ${heroKey} uses a card that is on the board.` : `Your hand ${heroKey} is not in the ${PLAYER_NAMES[hero.player]} range. Add it to the range (for example "${heroKey}") or change the hand.` };
+    return { error: clash ? `Your hand ${heroKey} uses a card that is on the board.` : `Your hand ${heroKey} is not in the ${plain(player(hero.player))} range. Add it to the range (for example "${heroKey}") or change the hand.` };
   }
   const solver = new Solver(spot);
   const overlay = $('solving');
@@ -119,6 +117,7 @@ function onNodeChange() {
 
 // ---------- rendering ----------
 function render() {
+  closeTip();
   renderFelt();
   renderActionBar();
   renderGrid();
@@ -134,7 +133,7 @@ function renderFelt() {
   const crumbs = state.path.map((n, k) => {
     if (k === 0) return `<button class="crumb ${state.path.length === 1 ? 'current' : ''}" data-depth="0">River starts</button>`;
     const prev = state.path[k - 1];
-    const label = `${PLAYER_NAMES[prev.player]} ${n.path[n.path.length - 1].toLowerCase()}`;
+    const label = `${plain(player(prev.player))} ${n.path[n.path.length - 1].toLowerCase()}`;
     return `<span class="crumb-sep">›</span><button class="crumb ${k === state.path.length - 1 ? 'current' : ''}" data-depth="${k}">${esc(label)}</button>`;
   }).join('');
   $('felt').innerHTML = `
@@ -147,7 +146,7 @@ function renderFelt() {
     <div class="chips">
       <div>Pot <b>${chips(P)}</b></div>
       <div>Behind <b>${chips(spot.stack - Math.max(...node.contrib))}</b></div>
-      <div>You (${PLAYER_NAMES[state.hero.player]}) <span style="display:inline-flex;gap:3px;vertical-align:middle">${comboCards(state.hero.hand)}</span></div>
+      <div>You (${esc(plain(player(state.hero.player)))}) <span style="display:inline-flex;gap:3px;vertical-align:middle">${comboCards(state.hero.hand)}</span></div>
     </div>`;
   $('felt').querySelectorAll('.crumb').forEach((b) => b.addEventListener('click', () => {
     const d = Number(b.dataset.depth);
@@ -163,7 +162,7 @@ function renderActionBar() {
   if (node.type !== 'action') {
     const P = spot.pot + node.contrib[0] + node.contrib[1];
     const msg = node.type === 'fold'
-      ? `${PLAYER_NAMES[node.folder]} folds. ${PLAYER_NAMES[1 - node.folder]} wins the ${chips(P)} pot.`
+      ? `${player(node.folder)} folds. ${player(1 - node.folder)} wins the ${chips(P)} pot.`
       : `Showdown for a ${chips(P)} pot.`;
     const hi = heroIndex();
     let heroLine = '';
@@ -171,10 +170,10 @@ function renderActionBar() {
       const opp = 1 - state.hero.player;
       const eq = spot.equities(state.hero.player, node.reach[opp])[hi];
       heroLine = Number.isFinite(eq)
-        ? ` Your ${state.hero.hand} wins ${pct(eq)} against the hands ${PLAYER_NAMES[opp]} gets here with.`
-        : ` ${PLAYER_NAMES[opp]} never reaches this showdown with the solved strategy.`;
+        ? ` Your ${state.hero.hand} wins ${pct(eq)} against the hands ${player(opp)} gets here with.`
+        : ` ${player(opp)} never reaches this showdown with the solved strategy.`;
     }
-    el.innerHTML = `<div class="who"><h2>Hand over</h2></div><p class="terminal">${esc(msg + heroLine)}</p>
+    el.innerHTML = `<div class="who"><h2>Hand over</h2></div><p class="terminal">${fmt(msg + heroLine)}</p>
       <button class="btn" id="back">Back one step</button>`;
     $('back').addEventListener('click', () => { state.path.pop(); onNodeChange(); });
     return;
@@ -187,7 +186,7 @@ function renderActionBar() {
   const isHero = p === state.hero.player;
   el.innerHTML = `
     <div class="who">
-      <h2>${PLAYER_NAMES[p]} to act <span>· ${isHero ? 'you' : 'opponent'}</span></h2>
+      <h2>${esc(plain(player(p)))} to act <span>· ${isHero ? 'you' : 'opponent'}</span></h2>
       <span class="muted small">${facing > 0 ? `Facing ${chips(facing)} into ${chips(P - facing)}` : `Pot ${chips(P)}`} · tap an action to play it</span>
     </div>
     <div class="actions">
@@ -231,7 +230,7 @@ function renderGrid() {
   const groups = classGroups(p);
   const reach = node.reach[p];
   const heroCls = p === state.hero.player ? (() => { const h = spot.hands[p][heroIndex()]; return classIndexOfCombo(h.c1, h.c2); })() : -1;
-  $('grid-title').textContent = `${PLAYER_NAMES[p]}'s strategy for every hand${p === state.hero.player ? ' (yours is outlined)' : ''}`;
+  $('grid-title').textContent = `${plain(player(p))}'s strategy for every hand${p === state.hero.player ? ' (yours is outlined)' : ''}`;
   grid.innerHTML = CLASS_LABELS.map((label, ci) => {
     const idx = groups[ci];
     let w = 0;
@@ -302,28 +301,20 @@ function renderSummary() {
   el.hidden = false;
   const ns = state.summaryCache ?? nodeSummary(spot, node);
   const colors = actionColors(node);
-  const name = PLAYER_NAMES[node.player];
+  const name = esc(plain(player(node.player)));
   el.innerHTML = `
     <h2>What ${name} does with each kind of hand</h2>
-    <p class="muted small" style="margin:4px 0 0">Hands grouped by equity against ${PLAYER_NAMES[1 - node.player]}'s range at this point. Bar colours match the actions above.</p>
+    <p class="muted small" style="margin:4px 0 0">Hands grouped by equity against ${fmt(player(1 - node.player))}'s range at this point. Bar colours match the actions above.</p>
     <div class="buckets">
       ${ns.buckets.map((b) => `
-        <div class="bucket" title="${esc(b.name)}: ${pct(b.share)} of range">
+        <div class="bucket" title="${esc(plain(b.name))}: ${pct(b.share)} of range">
           <span>${b.name}</span><span class="share">${pct(b.share)}</span>
           <span class="mix">${b.weight > 0 ? mixBar(b.mix, colors) : ''}</span>
         </div>`).join('')}
     </div>
-    <ul>${ns.lines.map((l) => `<li>${esc(l.text)}</li>`).join('')}</ul>`;
+    <ul>${ns.lines.map((l) => `<li>${fmt(l.text)}</li>`).join('')}</ul>`;
 }
 
-function termHTML(concept, key) {
-  if (!concept || !GLOSSARY[concept]) return '';
-  const g = GLOSSARY[concept];
-  const open = state.beginner || state.openTerms.has(key);
-  return open
-    ? `<div class="def"><b>${esc(g.term)}:</b> ${esc(g.text)}</div>`
-    : `<button class="term" data-term="${esc(key)}">What is ${esc(g.term.toLowerCase())}?</button>`;
-}
 
 function renderExplain() {
   const spot = state.spot, node = current();
@@ -340,10 +331,10 @@ function renderExplain() {
     if (hp === opp) {
       const hi = heroIndex();
       const eq = spot.equities(hp, node.reach[p])[hi];
-      extra = `<p>Right now your ${comboCards(state.hero.hand)} has <b>${pct(eq)}</b> equity against the hands ${PLAYER_NAMES[p]} can have.</p>`;
+      extra = `<p>Right now your ${comboCards(state.hero.hand)} has <b>${pct(eq)}</b> equity against the hands ${fmt(player(p))} can have.</p>`;
     }
-    el.innerHTML = `<h2>${PLAYER_NAMES[p]} is deciding</h2>
-      <p class="empty-state">Tap any hand in the grid to see why ${PLAYER_NAMES[p]} plays it that way, or tap an action to continue the hand.</p>${extra}`;
+    el.innerHTML = `<h2>${esc(plain(player(p)))} is deciding</h2>
+      <p class="empty-state">Tap any hand in the grid to see why ${fmt(player(p))} plays it that way, or tap an action to continue the hand.</p>${extra}`;
     return;
   }
   const ex = explainHand(spot, node, state.selIndex);
@@ -354,13 +345,13 @@ function renderExplain() {
     <div class="hand-head">
       <div class="cards">${comboCards(ex.hand, '')}</div>
       <div>
-        <div class="desc">${esc(ex.description)}</div>
-        <div class="sub">${isHero ? 'Your hand' : `${PLAYER_NAMES[p]} holding ${ex.handClass}`} · ${pct(ex.equity)} equity · beats ${pct(ex.percentile)} of own range</div>
+        <div class="desc">${esc(plain(ex.description))}</div>
+        <div class="sub">${isHero ? 'Your hand' : `${fmt(player(p))} holding ${esc(ex.handClass)}`} · ${pct(ex.equity)} equity · beats ${pct(ex.percentile)} of own range</div>
       </div>
     </div>
     <div class="verdict">
-      <div class="k">${isHero ? (ex.mixed ? 'Best play: mix these two' : 'Best play') : `What ${PLAYER_NAMES[p]} does${ex.mixed ? ' (a mix)' : ''}`}</div>
-      <div class="v">${esc(ex.verdict)}</div>
+      <div class="k">${isHero ? (ex.mixed ? 'Best play: mix these two' : 'Best play') : `What ${esc(plain(player(p)))} does${ex.mixed ? ' (a mix)' : ''}`}</div>
+      <div class="v">${esc(plain(ex.verdict))}</div>
       <div class="mix">${mixBar(ex.actions.map((a) => a.freq), colors)}</div>
     </div>
     <table class="ev">
@@ -379,20 +370,16 @@ function renderExplain() {
       ${ex.reasons.map((r, k) => `
         <li class="reason ${r.tag === 'verdict' ? 'verdict-r' : r.tag}">
           <span class="rail"></span>
-          <div><h4>${esc(r.title)}</h4><p>${esc(r.text)}</p>${termHTML(r.concept, `${node.id}-${k}`)}</div>
+          <div><h4>${esc(plain(r.title))}</h4><p>${fmt(r.text)}</p></div>
         </li>`).join('')}
     </ol>
-    <p class="ask">${esc(ex.summaryLine)}${p !== state.hero.player ? ` You are looking at ${PLAYER_NAMES[p]}'s strategy, which shows how your opponent should play.` : ''}</p>`;
-  el.querySelectorAll('.term').forEach((b) => b.addEventListener('click', () => {
-    state.openTerms.add(b.dataset.term);
-    renderExplain();
-  }));
+    <p class="ask">${fmt(ex.summaryLine)}${p !== state.hero.player ? ` You are looking at ${fmt(player(p))}'s strategy, which shows how your opponent should play.` : ''}</p>`;
 }
 
 function renderFoot() {
   const s = state.spot.summary;
   $('foot').innerHTML = `Solved in ${(s.ms / 1000).toFixed(1)}s (${s.iterations} CFR+ iterations). The strategy is within ${s.exploitability.toFixed(2)}% of the pot of perfect play.
-    Expected share of the ${chips(state.spot.pot)} pot: OOP ${chips(s.ev[0])}, IP ${chips(s.ev[1])}. Ranges are estimates; change them with “Set up your own hand”.`;
+    Expected share of the ${chips(state.spot.pot)} pot: ${fmt(player(0))} ${chips(s.ev[0])}, ${fmt(player(1))} ${chips(s.ev[1])}. Ranges are estimates; change them with “Set up your own hand”.`;
 }
 
 // ---------- boot ----------
@@ -411,7 +398,6 @@ async function loadPreset(id) {
   if (res.error) alert(res.error);
 }
 
-$('beginner').addEventListener('change', (e) => { state.beginner = e.target.checked; if (state.spot) renderExplain(); });
 $('edit-spot').addEventListener('click', () => {
   openEditor({
     config: state.config,
@@ -424,6 +410,7 @@ $('edit-spot').addEventListener('click', () => {
   });
 });
 
+initTips();
 initPresets();
 loadPreset(PRESETS[0].id);
 

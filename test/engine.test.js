@@ -5,7 +5,8 @@ import { evaluate, describe, categoryOf } from '../src/engine/evaluator.js';
 import { parseRange, expandRange, formatRange, CLASS_INDEX } from '../src/engine/range.js';
 import { Spot } from '../src/engine/spot.js';
 import { Solver } from '../src/engine/solver.js';
-import { explainHand, nodeSummary } from '../src/engine/explain.js';
+import { explainHand, nodeSummary, player } from '../src/engine/explain.js';
+import { fmt } from '../src/ui/tips.js';
 import { PRESETS } from '../src/presets.js';
 
 const ev = (s) => evaluate(parseCards(s));
@@ -64,23 +65,40 @@ test('toy polarized river matches theory', () => {
   assert.ok(Math.abs(res.ev[0] - 1) < 0.05 && Math.abs(res.ev[1] - 9) < 0.05);
 });
 
+function solvePreset(pr) {
+  const spot = new Spot(pr.config);
+  const s = new Solver(spot);
+  s.run(400);
+  const res = s.analyze();
+  let node = spot.tree.root;
+  for (const l of pr.line) node = node.children[node.actions.findIndex((a) => a.label === l)];
+  const i = spot.keyIndex[node.player].get(normalizeCombo(pr.hero.hand));
+  return { spot, res, node, i, ex: i == null ? null : explainHand(spot, node, i), ns: nodeSummary(spot, node) };
+}
+
 test('presets solve and produce explanations', () => {
   for (const pr of PRESETS) {
-    const spot = new Spot(pr.config);
-    const s = new Solver(spot);
-    s.run(400);
-    const res = s.analyze();
+    const { res, node, i, ex, ns } = solvePreset(pr);
     assert.ok(res.exploitability < 0.5, `${pr.id} exploitability ${res.exploitability}`);
-    let node = spot.tree.root;
-    for (const l of pr.line) node = node.children[node.actions.findIndex((a) => a.label === l)];
     assert.equal(node.player, pr.hero.player);
-    const i = spot.keyIndex[node.player].get(normalizeCombo(pr.hero.hand));
     assert.ok(i != null, `${pr.id} hero hand in range`);
-    const ex = explainHand(spot, node, i);
     assert.ok(ex.reasons.length >= 3);
     const sumFreq = ex.actions.reduce((t, a) => t + a.freq, 0);
     assert.ok(Math.abs(sumFreq - 1) < 1e-9);
-    const ns = nodeSummary(spot, node);
     assert.ok(Math.abs(ns.freq.reduce((a, b) => a + b, 0) - 1) < 1e-9);
+  }
+});
+
+test('player() links to position', () => {
+  assert.equal(player(0), '{{OOP|position}}');
+  assert.equal(player(1), '{{IP|position}}');
+});
+
+test('engine text carries tokens and fmt leaves no raw tokens', () => {
+  for (const pr of PRESETS) {
+    const { ex, ns } = solvePreset(pr);
+    const strings = [...ex.reasons.flatMap((r) => [r.title, r.text]), ex.verdict, ex.summaryLine, ...ns.lines.map((l) => l.text)];
+    assert.ok(strings.some((t) => t.includes('|position}}')), `${pr.id} mentions a player via player()`);
+    for (const t of strings) assert.ok(!fmt(t).includes('{{'), `${pr.id}: ${t}`);
   }
 });

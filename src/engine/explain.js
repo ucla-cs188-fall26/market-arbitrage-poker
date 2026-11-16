@@ -4,21 +4,26 @@ import { comboClass, cardStr } from './cards.js';
 import { describe, categoryOf } from './evaluator.js';
 
 export const PLAYER_NAMES = ['OOP', 'IP'];
+/** A player's name as a token linking to the position tooltip. */
+export const player = (p) => `{{${PLAYER_NAMES[p]}|position}}`;
 
-export const GLOSSARY = {
-  equity: { term: 'Equity', text: 'How often your hand wins at showdown against the hands your opponent can have right now (ties count half).' },
-  potOdds: { term: 'Pot odds', text: 'The share of the final pot you must put in to call. If you need to call 10 to win a pot that will be 40, you need to win at least 25% of the time.' },
-  mdf: { term: 'Minimum defence frequency (MDF)', text: 'How much of your range you must continue with so that a bluff with any two cards does not automatically profit. For a bet b into a pot p it is p / (p + b).' },
-  blockers: { term: 'Blockers', text: 'Cards in your hand that your opponent therefore cannot hold. Holding an ace of the flush suit means the opponent has fewer nut flushes.' },
-  valueBet: { term: 'Value bet', text: 'A bet that wants a call because, when called, you win more than half the time.' },
-  bluff: { term: 'Bluff', text: 'A bet with a hand that usually loses when called, made because the opponent folds often enough.' },
-  bluffCatcher: { term: 'Bluff-catcher', text: 'A hand that beats only bluffs. Whether to call depends on how many bluffs the opponent has, not on how strong your hand looks.' },
-  polarized: { term: 'Polarized range', text: 'A betting range made of very strong hands and bluffs, with the medium hands checked.' },
-  mixed: { term: 'Mixed strategy', text: 'When two actions earn almost the same, the solver plays both at set frequencies so the opponent cannot predict or exploit you.' },
-  rangeAdvantage: { term: 'Nut advantage', text: 'Which player holds more of the very strongest hands. The player with more nuts can bet more and bigger.' },
-  showdownValue: { term: 'Showdown value', text: 'A hand that often wins if the hand checks down, but that worse hands will not call a bet with.' },
-  trap: { term: 'Trapping', text: 'Checking a strong hand so your checks are not all weak, and to let the opponent bluff.' },
-  breakEven: { term: 'Break-even fold rate', text: 'A pure bluff of b into a pot p profits if the opponent folds more than b / (p + b) of the time.' },
+// Tooltip content by id. Text links a phrase to an entry with a {{label|id}} token.
+// Blank lines split an entry into paragraphs.
+export const TIPS = {
+  position: 'Position: who acts first. The player out of position (OOP) acts first; the player in position (IP) acts last. Seats decide it: after the flop, action starts to the left of the button, so the player nearer the button acts later.\n\nIP sees what OOP did before deciding. IP can check back to take a free showdown and bet when OOP shows weakness, while OOP has to act without that information. That is why IP usually wins more than its raw equity.',
+  equity: 'Equity: how often your hand wins at showdown against the hands your opponent can have right now (ties count half).',
+  potOdds: 'Pot odds: the share of the final pot you must put in to call. If you need to call 10 to win a pot that will be 40, you need to win at least 25% of the time.',
+  mdf: 'Minimum defence frequency (MDF): how much of your range you must continue with so that a bluff with any two cards does not automatically profit. For a bet b into a pot p it is p / (p + b).',
+  blockers: 'Blockers: cards in your hand that your opponent therefore cannot hold. Holding an ace of the flush suit means the opponent has fewer nut flushes.',
+  valueBet: 'Value bet: a bet that wants a call because, when called, you win more than half the time.',
+  bluff: 'Bluff: a bet with a hand that usually loses when called, made because the opponent folds often enough.',
+  bluffCatcher: 'Bluff-catcher: a hand that beats only bluffs. Whether to call depends on how many bluffs the opponent has, not on how strong your hand looks.',
+  polarized: 'Polarized range: a betting range made of very strong hands and bluffs, with the medium hands checked.',
+  mixed: 'Mixed strategy: when two actions earn almost the same, the solver plays both at set frequencies so the opponent cannot predict or exploit you.',
+  rangeAdvantage: 'Nut advantage: which player holds more of the very strongest hands. The player with more nuts can bet more and bigger.',
+  showdownValue: 'Showdown value: a hand that often wins if the hand checks down, but that worse hands will not call a bet with.',
+  trap: 'Trapping: checking a strong hand so your checks are not all weak, and to let the opponent bluff.',
+  breakEven: 'Break-even fold rate: a pure bluff of b into a pot p profits if the opponent folds more than b / (p + b) of the time.',
 };
 
 const pct = (x, d = 0) => (Number.isFinite(x) ? `${(x * 100).toFixed(d)}%` : '–');
@@ -144,7 +149,7 @@ export function explainHand(spot, node, i) {
   const comp = composition(spot, p, i, reachO);
   const pctl = percentileInRange(spot, p, i, reachP);
   const reasons = [];
-  const name = PLAYER_NAMES[p], oname = PLAYER_NAMES[opp];
+  const name = player(p), oname = player(opp);
   const handDesc = describe(hand.rank);
 
   const actions = node.actions.map((a, k) => ({
@@ -162,8 +167,8 @@ export function explainHand(spot, node, i) {
   // 1. How strong is the hand here?
   const strength = comp.equity;
   reasons.push({
-    tag: 'strength', concept: 'equity', title: `${handDesc} — ${pct(strength)} equity`,
-    text: `Against the ${oname} hands that get here, you win ${pct(comp.loses / comp.total)} and lose ${pct(comp.beats / comp.total)}${comp.ties > 0 ? `, tie ${pct(comp.ties / comp.total)}` : ''}. `
+    tag: 'strength', title: `${handDesc} — ${pct(strength)} equity`,
+    text: `That is your {{equity|equity}}. Against the ${oname} hands that get here, you win ${pct(comp.loses / comp.total)} and lose ${pct(comp.beats / comp.total)}${comp.ties > 0 ? `, tie ${pct(comp.ties / comp.total)}` : ''}. `
       + `Within your own range here this hand is stronger than ${pct(pctl)} of your combos.`
       + (comp.beats > 0 ? ` Hands that beat you include ${topClasses(spot, p, i, (j) => (spot.rank[opp][j] > hand.rank ? reachO[j] : 0)).join(', ')}.` : ' Nothing they can have beats you.'),
   });
@@ -173,11 +178,14 @@ export function explainHand(spot, node, i) {
     if (alt != null) {
       const d = evs[top] - evs[alt];
       reasons.unshift({
-        tag: 'verdict', concept: d < 0.01 * P ? 'mixed' : null,
+        tag: 'verdict',
         title: d < 0.01 * P
           ? `${node.actions[top].label} and ${node.actions[alt].label} are worth about the same`
           : `${node.actions[top].label} earns ${chips(d)} more than ${node.actions[alt].label}`,
-        text: `Expected value from here: ${node.actions[top].label} ${chips(evs[top])}, ${node.actions[alt].label} ${chips(evs[alt])} chips (${pct(Math.abs(d) / P, 1)} of the pot). The reasons below explain where that gap comes from.`,
+        text: `Expected value from here: ${node.actions[top].label} ${chips(evs[top])}, ${node.actions[alt].label} ${chips(evs[alt])} chips (${pct(Math.abs(d) / P, 1)} of the pot). `
+          + (d < 0.01 * P
+            ? 'A gap this small makes room for a {{mixed strategy|mixed}}. The reasons below explain where the gap comes from.'
+            : 'The reasons below explain where that gap comes from.'),
       });
     }
   }
@@ -192,9 +200,9 @@ export function explainHand(spot, node, i) {
     for (let k = 0; k < np; k++) { totRange += reachP[k]; contRange += reachP[k] * (1 - node.avg[foldIdx * np + k]); }
     const callEdge = strength - need;
     reasons.push({
-      tag: callEdge >= 0 ? 'good' : 'bad', concept: 'potOdds',
+      tag: callEdge >= 0 ? 'good' : 'bad',
       title: `Pot odds: you need ${pct(need, 1)}, you have ${pct(strength, 1)}`,
-      text: `Calling ${chips(facing)} to win a pot of ${chips(P)} means you must win at least ${pct(need, 1)} of the time. `
+      text: `Calling ${chips(facing)} to win a pot of ${chips(P)} means your {{pot odds|potOdds}} require winning at least ${pct(need, 1)} of the time. `
         + (callEdge >= 0
           ? `You are ${pct(callEdge, 1)} above that line, so calling makes money against this betting range.`
           : `You are ${pct(-callEdge, 1)} short, so calling loses money against this betting range.`),
@@ -203,9 +211,9 @@ export function explainHand(spot, node, i) {
     const isCatcher = comp.loses > 0 && comp.beats > 0;
     if (isCatcher) {
       reasons.push({
-        tag: 'info', concept: 'bluffCatcher',
+        tag: 'info',
         title: `${oname}'s range here is ${pct(valueShare)} value, ${pct(comp.loses / comp.total)} bluffs`,
-        text: `Your hand only beats their bluffs. The ${oname} hands that bet this way and beat you are mostly ${topClasses(spot, p, i, (j) => (spot.rank[opp][j] > hand.rank ? reachO[j] : 0)).join(', ')}; `
+        text: `Your hand is a {{bluff-catcher|bluffCatcher}}: it only beats their bluffs. The ${oname} hands that bet this way and beat you are mostly ${topClasses(spot, p, i, (j) => (spot.rank[opp][j] > hand.rank ? reachO[j] : 0)).join(', ')}; `
           + `the ones you beat are mostly ${topClasses(spot, p, i, (j) => (spot.rank[opp][j] < hand.rank ? reachO[j] : 0)).join(', ')}.`,
       });
     }
@@ -217,16 +225,16 @@ export function explainHand(spot, node, i) {
       const helps = shift < 0;
       const key = rem.slice().sort((a, b) => (helps ? (b.beats - b.loses) - (a.beats - a.loses) : (b.loses - b.beats) - (a.loses - a.beats)))[0];
       reasons.push({
-        tag: helps ? 'good' : 'bad', concept: 'blockers',
+        tag: helps ? 'good' : 'bad',
         title: helps ? `Good blockers: your ${key.card} removes value hands` : `Bad blockers: your ${key.card} removes bluffs`,
-        text: `Without your cards, ${pct(unblocked.beats / unblocked.total)} of ${oname}'s range would beat you. Because you hold ${hand.key}, it is ${pct(valueShare)}. `
+        text: `Your cards are {{blockers|blockers}}. Without them, ${pct(unblocked.beats / unblocked.total)} of ${oname}'s range would beat you. Because you hold ${hand.key}, it is ${pct(valueShare)}. `
           + `Your ${key.card} alone takes away ${chips(key.beats)} combos that beat you and ${chips(key.loses)} that you beat.`,
       });
     }
     reasons.push({
-      tag: 'info', concept: 'mdf',
+      tag: 'info',
       title: `Your range must defend about ${pct(mdf)}; the solver continues ${pct(contRange / totRange)}`,
-      text: `Your hand is stronger than ${pct(pctl)} of your range here. `
+      text: `That ${pct(mdf)} is your {{minimum defence frequency|mdf}}. Your hand is stronger than ${pct(pctl)} of your range here. `
         + (freqs[foldIdx] > 0.5
           ? 'It sits below the cut-off, so it is one of the hands that gives up.'
           : 'It is above the cut-off, so it is one of the hands that continues.')
@@ -239,11 +247,11 @@ export function explainHand(spot, node, i) {
       if (!rs) return;
       const valueRaise = rs.equityWhenCalled >= 0.5;
       reasons.push({
-        tag: 'info', concept: valueRaise ? 'valueBet' : 'bluff',
+        tag: 'info',
         title: valueRaise ? `Raise for value: you win ${pct(rs.equityWhenCalled)} when they continue` : `Raise as a bluff: they fold ${pct(rs.foldRate)}`,
         text: valueRaise
-          ? `If you ${actionPhrase(a)}, ${oname} still continues with ${pct(1 - rs.foldRate)} of their range, mostly ${topClasses(spot, p, i, (j) => rs.child.avg[rs.foldIdx * spot.n[opp] + j] < 1 ? reachO[j] * (1 - rs.child.avg[rs.foldIdx * spot.n[opp] + j]) : 0).join(', ')}, and you beat most of those.`
-          : `If you ${actionPhrase(a)}, ${oname} folds ${pct(rs.foldRate)} of the time. Your hand has little showdown value, so turning it into a bluff earns more than folding.`,
+          ? `If you ${actionPhrase(a)}, ${oname} still continues with ${pct(1 - rs.foldRate)} of their range, mostly ${topClasses(spot, p, i, (j) => rs.child.avg[rs.foldIdx * spot.n[opp] + j] < 1 ? reachO[j] * (1 - rs.child.avg[rs.foldIdx * spot.n[opp] + j]) : 0).join(', ')}, and you beat most of those, so it is a {{value raise|valueBet}}.`
+          : `If you ${actionPhrase(a)}, ${oname} folds ${pct(rs.foldRate)} of the time. Your hand has little {{showdown value|showdownValue}}, so turning it into a {{bluff|bluff}} earns more than folding.`,
       });
     });
   } else {
@@ -272,9 +280,9 @@ export function explainHand(spot, node, i) {
       if (value) {
         const worse = topClasses(spot, p, i, (j) => (spot.rank[opp][j] < hand.rank ? reachO[j] * (1 - (rs.foldIdx >= 0 ? rs.child.avg[rs.foldIdx * spot.n[opp] + j] : 0)) : 0));
         reasons.push({
-          tag: chosen ? 'good' : 'info', concept: 'valueBet',
+          tag: chosen ? 'good' : 'info',
           title: `${a.label}: a value bet — called by worse ${pct(rs.equityWhenCalled)} of the time`,
-          text: `${oname} folds ${pct(rs.foldRate)} and continues with the rest. When they continue you are ahead ${pct(rs.equityWhenCalled)}, so a call pays you. `
+          text: `${oname} folds ${pct(rs.foldRate)} and continues with the rest. When they continue you are ahead ${pct(rs.equityWhenCalled)}, so a call pays you: this is a {{value bet|valueBet}}. `
             + (worse.length ? `Worse hands that pay you off: ${worse.join(', ')}.` : '')
             + (rs.raiseRate > 0.03 ? ` They raise ${pct(rs.raiseRate)} of the time, which is the risk of betting.` : '')
             + (evs[k] < evs[checkIdx] - 0.005 * P ? ` Even so it earns ${chips(evs[k])} versus ${chips(evs[checkIdx])} for checking${rs.raiseRate > 0.03 ? ', mainly because of those raises' : ', because they only call with hands that are close to yours'}.` : ''),
@@ -284,9 +292,9 @@ export function explainHand(spot, node, i) {
         const blockShift = rs.foldRate - unb.foldRate;
         const good = rs.foldRate > be;
         reasons.push({
-          tag: chosen ? (good ? 'good' : 'info') : 'bad', concept: 'breakEven',
+          tag: chosen ? (good ? 'good' : 'info') : 'bad',
           title: `${a.label}: works as a bluff only if they fold ${pct(be)}; they fold ${pct(rs.foldRate)}`,
-          text: `When called you are ahead just ${pct(rs.equityWhenCalled)}, so this bet is a bluff. Risking ${chips(a.amount)} to win ${chips(P)} needs ${pct(be)} folds. `
+          text: `When called you are ahead just ${pct(rs.equityWhenCalled)}, so this bet is a bluff. Risking ${chips(a.amount)} to win ${chips(P)} needs {{${pct(be)} folds|breakEven}}. `
             + (good
               ? (evs[k] < evs[checkIdx] - 0.005 * P
                 ? `They fold more than that, so the bluff makes money (${chips(evs[k])}), but checking earns more (${chips(evs[checkIdx])}) because your hand still wins some showdowns.`
@@ -301,9 +309,9 @@ export function explainHand(spot, node, i) {
           const rem = cardRemoval(spot, p, i, reachO, callW);
           const key = rem.slice().sort((x, y) => (y.beats + y.loses) - (x.beats + x.loses))[0];
           reasons.push({
-            tag: blockShift > 0 ? 'good' : 'bad', concept: 'blockers',
+            tag: blockShift > 0 ? 'good' : 'bad',
             title: blockShift > 0 ? `Your ${key.card} is a good blocker for bluffing` : `Your ${key.card} blocks their folds`,
-            text: `${key.card} removes ${chips(key.beats + key.loses)} combos of the hands that would call a ${chips(a.amount)} bet.`,
+            text: `As a {{blocker|blockers}}, ${key.card} removes ${chips(key.beats + key.loses)} combos of the hands that would call a ${chips(a.amount)} bet.`,
           });
         }
       }
@@ -313,13 +321,13 @@ export function explainHand(spot, node, i) {
       const rsB = best != null ? responseStats(spot, p, i, node, best) : null;
       if (lastToAct) {
         reasons.push({
-          tag: 'info', concept: strength >= 0.5 ? 'showdownValue' : 'bluff',
+          tag: 'info',
           title: `Checking back wins ${pct(strength)} at showdown`,
           text: strength >= 0.35 && rsB && rsB.equityWhenCalled < 0.5
-            ? `Betting folds out the hands you beat and gets called by the hands that beat you (you'd be ahead only ${pct(rsB.equityWhenCalled)} when called). Checking keeps your showdown value.`
+            ? `Betting folds out the hands you beat and gets called by the hands that beat you (you'd be ahead only ${pct(rsB.equityWhenCalled)} when called). Checking keeps your {{showdown value|showdownValue}}.`
             : strength < 0.35
-              ? `The hand rarely wins at showdown, so checking is "giving up".${chosenBluffs.length ? ` The bluffs the solver picks instead: ${chosenBluffs.join(', ')}.` : ''}`
-              : 'Checking realises your equity without risking a raise.',
+              ? `The hand rarely wins at showdown, so checking is "giving up" rather than turning it into a {{bluff|bluff}}.${chosenBluffs.length ? ` The bluffs the solver picks instead: ${chosenBluffs.join(', ')}.` : ''}`
+              : 'Checking realises your {{showdown value|showdownValue}} without risking a raise.',
         });
       } else {
         const after = node.children[checkIdx];
@@ -332,13 +340,13 @@ export function explainHand(spot, node, i) {
         }
         const strong = strength >= 0.7;
         reasons.push({
-          tag: 'info', concept: strong ? 'trap' : 'showdownValue',
+          tag: 'info',
           title: strong ? `Checking a strong hand: ${oname} bets ${pct(bet / tot)} after a check` : `Checking: ${oname} bets ${pct(bet / tot)} of the time after you check`,
           text: strong
-            ? 'Strong hands in your checking range stop them from betting freely when you check, and they let them bluff into you.'
+            ? '{{Trapping|trap}}: strong hands in your checking range stop them from betting freely when you check, and they let them bluff into you.'
             : rsB && rsB.equityWhenCalled < 0.5 && strength >= 0.35
-              ? `If you bet, worse hands mostly fold and better hands call (ahead only ${pct(rsB.equityWhenCalled)} when called), so the hand prefers to check and see a showdown.`
-              : 'The hand is not strong enough to bet for value, and other hands make better bluffs.',
+              ? `If you bet, worse hands mostly fold and better hands call (ahead only ${pct(rsB.equityWhenCalled)} when called), so the hand prefers to check and keep its {{showdown value|showdownValue}}.`
+              : 'The hand is not strong enough to bet for value, and other hands make better bluffs. Checking keeps whatever {{showdown value|showdownValue}} it has.',
         });
       }
     }
@@ -348,10 +356,10 @@ export function explainHand(spot, node, i) {
   if (mixed) {
     const gap = Math.abs(evs[top] - evs[second]);
     reasons.push({
-      tag: 'info', concept: 'mixed',
+      tag: 'info',
       title: `Mixed: ${node.actions[top].label} ${pct(freqs[top])} / ${node.actions[second].label} ${pct(freqs[second])}`,
       text: `Both earn almost the same (gap ${chips(gap)} chips, ${pct(gap / P, 1)} of the pot). `
-        + `The solver plays both so ${oname} can't tell which you have; always picking one would let them adjust.`,
+        + `The solver plays a {{mixed strategy|mixed}} so ${oname} can't tell which you have; always picking one would let them adjust.`,
     });
   }
 
@@ -396,7 +404,7 @@ export function nodeSummary(spot, node) {
   let nutsP = 0, nutsO = 0;
   for (let i = 0; i < np; i++) if (eq[i] >= 0.85) nutsP += reachP[i];
   for (let j = 0; j < spot.n[opp]; j++) if (eqO[j] >= 0.85) nutsO += reachO[j];
-  const name = PLAYER_NAMES[p], oname = PLAYER_NAMES[opp];
+  const name = player(p), oname = player(opp);
   const facing = node.contrib[opp] - node.contrib[p];
   const lines = [];
   const aggressive = node.actions.map((a, k) => (['bet', 'raise', 'allin'].includes(a.kind) ? k : -1)).filter((k) => k >= 0);
@@ -406,21 +414,21 @@ export function nodeSummary(spot, node) {
   const weakB = (by.Weak.weight + by.Air.weight) ? (by.Weak.weight * aggr(by.Weak.mix) + by.Air.weight * aggr(by.Air.mix)) / (by.Weak.weight + by.Air.weight) : 0;
   const medB = aggr(by.Medium.mix);
   const shareP = total ? nutsP / total : 0, shareO = totO ? nutsO / totO : 0;
+  const hasNuts = shareP > shareO * 1.3 + 0.02; // shared so the lines below never disagree
   lines.push({
-    concept: 'rangeAdvantage',
     text: `${pct(shareP)} of ${name}'s range is nutted here (85%+ equity) versus ${pct(shareO)} of ${oname}'s. `
-      + (shareP > shareO * 1.3 + 0.02 ? `${name} has the nut advantage, which lets them bet.` : shareO > shareP * 1.3 + 0.02 ? `${oname} has the nut advantage, so ${name} has to be careful.` : 'Neither side has a clear nut advantage.'),
+      + (hasNuts ? `${name} has the {{nut advantage|rangeAdvantage}}, which lets them bet.` : shareO > shareP * 1.3 + 0.02 ? `${oname} has the {{nut advantage|rangeAdvantage}}, so ${name} has to be careful.` : 'Neither side has a clear {{nut advantage|rangeAdvantage}}.'),
   });
   if (facing > 0) {
     const foldIdx = node.actions.findIndex((a) => a.kind === 'fold');
     const mdf = (P - facing) / P;
-    lines.push({ concept: 'mdf', text: `Facing ${chips(facing)} into ${chips(P - facing)}, MDF is ${pct(mdf)}. ${name} continues with ${pct(1 - freq[foldIdx])} of their range.` });
+    lines.push({ text: `Facing ${chips(facing)} into ${chips(P - facing)}, {{MDF|mdf}} is ${pct(mdf)}. ${name} continues with ${pct(1 - freq[foldIdx])} of their range.` });
   } else {
     const a = aggr(freq);
-    if (a < 0.05) lines.push({ concept: 'rangeAdvantage', text: `${name} checks almost everything: betting would get called by better and fold out worse too often.` });
-    else if (strongB > medB + 0.25 && weakB > medB + 0.1) lines.push({ concept: 'polarized', text: `Betting is polarized: ${name} bets ${pct(strongB)} of strong hands and ${pct(weakB)} of weak ones, but only ${pct(medB)} of medium hands, which prefer to check and show down.` });
-    else if (strongB > medB && medB > weakB) lines.push({ concept: 'valueBet', text: `Betting is value-heavy: the stronger the hand, the more it bets (${pct(strongB)} strong, ${pct(medB)} medium, ${pct(weakB)} weak).` });
-    else lines.push({ concept: 'mixed', text: `${name} bets ${pct(a)} overall: ${pct(strongB)} of strong hands, ${pct(medB)} of medium, ${pct(weakB)} of weak.` });
+    if (a < 0.05) lines.push({ text: `${name} checks almost everything: ${hasNuts ? '' : 'without the {{nut advantage|rangeAdvantage}}, '}betting would get called by better and fold out worse too often.` });
+    else if (strongB > medB + 0.25 && weakB > medB + 0.1) lines.push({ text: `Betting is {{polarized|polarized}}: ${name} bets ${pct(strongB)} of strong hands and ${pct(weakB)} of weak ones, but only ${pct(medB)} of medium hands, which prefer to check and show down.` });
+    else if (strongB > medB && medB > weakB) lines.push({ text: `Betting is {{value-heavy|valueBet}}: the stronger the hand, the more it bets (${pct(strongB)} strong, ${pct(medB)} medium, ${pct(weakB)} weak).` });
+    else lines.push({ text: `${name} bets ${pct(a)} overall, a {{mixed strategy|mixed}}: ${pct(strongB)} of strong hands, ${pct(medB)} of medium, ${pct(weakB)} of weak.` });
   }
   return { player: p, freq, buckets, lines, potNow: P, facing, comboCount: total };
 }
