@@ -56,12 +56,17 @@ export function openEditor({ config, hero, onSolve }) {
   const area = [0, 1].map((p) => form.querySelector(`textarea[name=range${p}]`));
   const weights = [0, 1].map((p) => { try { return parseRange(area[p].value).classes; } catch { return new Float64Array(169); } });
 
+  // Cells are built once and restyled in place: replacing the button under the pointer
+  // mid-press makes the browser drop the pointerup, leaving the grid stuck in paint mode.
+  [0, 1].forEach((p) => {
+    mini[p].innerHTML = CLASS_LABELS.map((l, i) => `<button type="button" data-i="${i}">${l}</button>`).join('');
+  });
   function paintGrid(p) {
-    mini[p].innerHTML = CLASS_LABELS.map((l, i) => {
+    mini[p].querySelectorAll('button').forEach((b, i) => {
       const w = weights[p][i];
-      const bg = w > 0 ? `linear-gradient(to top, #4fa477 ${w * 100}%, #eef1ec ${w * 100}%)` : '';
-      return `<button type="button" data-i="${i}" style="${bg ? `background:${bg}` : ''}" title="${l} ${Math.round(w * 100)}%">${l}</button>`;
-    }).join('');
+      b.style.background = w > 0 ? `linear-gradient(to top, #4fa477 ${w * 100}%, #eef1ec ${w * 100}%)` : '';
+      b.title = `${CLASS_LABELS[i]} ${Math.round(w * 100)}%`;
+    });
   }
   [0, 1].forEach((p) => {
     paintGrid(p);
@@ -76,8 +81,11 @@ export function openEditor({ config, hero, onSolve }) {
       paintGrid(p);
     };
     mini[p].addEventListener('pointerdown', (e) => { down = true; apply(e.target); });
-    mini[p].addEventListener('pointerover', (e) => { if (down) apply(e.target); });
-    window.addEventListener('pointerup', () => { down = false; });
+    // Also require the primary button to still be held, so a missed release can't strand paint mode.
+    mini[p].addEventListener('pointerover', (e) => { if (down && (e.buttons & 1)) apply(e.target); else down = false; });
+    const stop = () => { down = false; };
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
     area[p].addEventListener('input', () => {
       try { weights[p].set(parseRange(area[p].value).classes); paintGrid(p); form.querySelector('#editor-err').textContent = ''; } catch (e) { form.querySelector('#editor-err').textContent = `${p === 0 ? 'OOP' : 'IP'} range: ${e.message}`; }
     });
